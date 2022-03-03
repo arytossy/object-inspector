@@ -1,0 +1,24 @@
+doctype html
+html(lang="ja")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Logs
+    link(rel="stylesheet", href="/css/style.css")
+    script(src="/js/script.js") 
+  body
+    ul
+      each file in files
+        li
+          a(href=`/logs/${file.id}`) #{file.name ? `${file.name}(${file.id})` : file.id}
+          button(onclick=`showRenameDialog("${file.id}")`) Rename
+          button(onclick=`deleteLog("${file.id}")`) Delete
+    #dialogWrapper
+      #dialog
+        p
+          label New Name : 
+            input#newName(type="text")
+            input#targetId(type="hidden")
+        p
+          button(onclick="executeRename()") Rename
+          button(onclick="closeRenameDialog()") Cancel
