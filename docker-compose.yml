@@ -1,0 +1,12 @@
+version: '3'
+services:
+  server:
+    image: node:16
+    volumes:
+      - type: bind
+        source: .
+        target: /root/app
+    ports:
+      - "3333:3333"
+    working_dir: /root/app
+    command: bash -c "npm install && node server.js"
