@@ -8,5 +8,7 @@ services:
         target: /root/app
     ports:
       - "3333:3333"
+    environment:
+      - TZ=Asia/Tokyo
     working_dir: /root/app
     command: bash -c "npm install && node server.js"

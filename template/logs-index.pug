@@ -13,6 +13,8 @@ html(lang="ja")
           a(href=`/logs/${file.id}`) #{file.name ? `${file.name}(${file.id})` : file.id}
           button(onclick=`showRenameDialog("${file.id}")`) Rename
           button(onclick=`deleteLog("${file.id}")`) Delete
+      else
+        li No objects! Let's post your objects!
     #dialogWrapper
       #dialog
         p

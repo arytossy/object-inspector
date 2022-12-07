@@ -1,4 +1,4 @@
-const fs = require("fs").promises;
+const fs = require("fs");
 const path = require("path");
 
 const express = require("express");
@@ -20,7 +20,7 @@ server.use(express.static(path.join(__dirname, "public")));
 // consts
 const LOG_NAME_MAP = path.join(__dirname, "data", "log-name-mapping");
 
-server.post("/logs", async (req, res) => {
+server.post("/logs", (req, res) => {
     const today = new Date();
     const timestamp = ""
         + today.getFullYear()
@@ -31,58 +31,88 @@ server.post("/logs", async (req, res) => {
         + `${today.getMinutes()}`.padStart(2, "0")
         + `${today.getSeconds()}`.padStart(2, "0")
     ;
-    await fs.writeFile(
-        path.join(__dirname, "data/logs", timestamp),
+    const logsDir = path.join(__dirname, "data", "logs");
+    if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+    }
+    fs.writeFileSync(
+        path.join(logsDir, timestamp),
         JSON.stringify(req.body)
     );
-    console.log("The file has created suscessfully.");
+    console.log("The file has created successfully.");
     res.sendStatus(200);
 });
 
-server.get("/logs", async (_, res) => {
-    const mapping = await fs.readFile(LOG_NAME_MAP);
-    const lines = mapping.toString().split("\n");
-    const files = await fs.readdir(path.join(__dirname, "data/logs"));
-    const fileList = files.map(file => {
-        const record = lines.find(line => line.includes(file));
-        const name = record ? record.split("\t")[1] : null;
-        return { id: file, name: name};
-    });
+server.get("/logs", (_, res) => {
+    let fileList = [];
+    const logsDir = path.join(__dirname, "data", "logs");
+    if (fs.existsSync(logsDir)) {
+        let mapping = [];
+        if (fs.existsSync(LOG_NAME_MAP)) {
+            const mappingFileContent = fs.readFileSync(LOG_NAME_MAP);
+            mapping = mappingFileContent.toString().split("\n");
+        }
+        const files = fs.readdirSync(logsDir);
+        fileList = files.map(file => {
+            const entry = mapping.find(entry => entry.includes(file));
+            const name = entry ? entry.split("\t")[1] : null;
+            return { id: file, name: name };
+        });
+    }
     res.render("logs-index", { files: fileList });
 });
 
-server.get("/logs/:id", async (req, res) => {
-    const content = await fs.readFile(path.join(__dirname, "data/logs", req.params.id));
+server.get("/logs/:id", (req, res) => {
+    const file = path.join(__dirname, "data/logs", req.params.id);
+    if (!fs.existsSync(file)) {
+        res.sendStatus(404);
+        return;
+    }
+    const content = fs.readFileSync(file);
     res.render("log-detail", {data: JSON.parse(content)});
 });
 
-server.put("/logs/:id/rename", async (req, res) => {
+server.put("/logs/:id/rename", (req, res) => {
     const id = req.params.id;
     const name = req.body.name;
-    const mapping = await fs.readFile(LOG_NAME_MAP);
-    const lines = mapping.toString().split("\n");
+    if (!fs.existsSync(path.join(__dirname, "data/logs", id))) {
+        res.sendStatus(404);
+        return;
+    }
+    let mapping = [];
+    if (fs.existsSync(LOG_NAME_MAP)) {
+        const mappingFileContent = fs.readFileSync(LOG_NAME_MAP);
+        mapping = mappingFileContent.toString().split("\n");
+    }
     const result =
-        lines
-            .filter(line => line != "")
-            .filter(line => !line.includes(id))
+        mapping
+            .filter(entry => entry != "")
+            .filter(entry => !entry.includes(id))
             .concat(`${id}\t${name}`)
     ;
-    await fs.writeFile(LOG_NAME_MAP, result.join("\n"));
+    fs.writeFileSync(LOG_NAME_MAP, result.join("\n"));
     res.sendStatus(200);
 });
 
-server.delete("/logs/:id", async (req, res) => {
+server.delete("/logs/:id", (req, res) => {
     const id = req.params.id;
-    await fs.unlink(path.join(__dirname, "data/logs", id));
-    const mapping = await fs.readFile(LOG_NAME_MAP);
-    const lines = mapping.toString().split("\n");
-    const result =
-        lines
-            .filter(line => line != "")
-            .filter(line => !line.includes(id))
-    ;
-    await fs.writeFile(LOG_NAME_MAP, result.join("\n"));
+    const file = path.join(__dirname, "data/logs", id);
+    if (!fs.existsSync(file)) {
+        res.sendStatus(404);
+        return;
+    }
+    fs.unlinkSync(file);
+    if (fs.existsSync(LOG_NAME_MAP)) {
+        const mappingFileContent = fs.readFileSync(LOG_NAME_MAP);
+        const mapping = mappingFileContent.toString().split("\n");
+        const result =
+            mapping
+                .filter(entry => entry != "")
+                .filter(entry => !entry.includes(id))
+        ;
+        fs.writeFileSync(LOG_NAME_MAP, result.join("\n"));
+    }
     res.sendStatus(204);
-})
+});
 
 server.listen(3333, () => console.log("listening at 3333 port ..."));
